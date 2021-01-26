@@ -54,12 +54,12 @@ function Needleman_Wunsch_rec(zi, zj, S, B, σ, γ, M, N)
         return
     end
 
-    # for each row including (zi,zy)
+    # for each row including (zi,zj)
     for i = zi:M
         Needleman_Wunsch_cell(i, zj, S, B, σ, γ, M, N)
     end
 
-    # for each col excluding (zi,zy) to avoid useless call
+    # for each col excluding (zi,zj) to avoid useless call
     for j = zj+1:N
         Needleman_Wunsch_cell(zi, j, S, B, σ, γ, M, N)
     end
