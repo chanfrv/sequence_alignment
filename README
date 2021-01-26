@@ -2,7 +2,7 @@
 
 ## Language
 
-J'ai implémenté le projet en Julia, c'est un language que je voulais découvrir et qui me semblait adapté au type de projet.
+J'ai implémenté le projet en Julia (le paquet linux s'appelle `julia`), c'est un language que je voulais découvrir et qui me semblait adapté au type de projet.
 
 ## Dépendances
 
@@ -15,6 +15,7 @@ Pour installer un paquet en Julia il faut entrer une fois dans l'interpréteur :
 julia> import Pkg
 julia> Pkg.add("CmdLine")
 ```
+Les paquets sont installés dans `~/.julia/`.
 
 ## Usage
 
@@ -56,6 +57,9 @@ $ echo $?
 
 J'ai implémenté les 3 paliers, avec des temps d'execution raisonnables :
 ```
+$ time ./nwalign.jl --gamma=-1,-1 score SBZSKDAMKLHLILEGSVNGHCFEIHGEGEG SLSKDAMKLHLVNGHCFNIHGRGEG
+111
+./nwalign.jl --gamma=-1,-1 score SBZSKDAMKLHLILEGSVNGHCFEIHGEGEG   4.97s user 0.08s system 99% cpu 5.064 total
 $ time ./src/nwalign.jl --gamma=0,-1 align TAT ATGAC
 TAT---
 -ATGAC
