@@ -5,24 +5,27 @@ include("sigma.jl")
 
 
 # Returns Sij
-function s(i, j, Σ, Σ_idx, γ, x, y)
+function Needleman_Wunsch(i, j, Σ, Σ_idx, γ, x, y)
     (e, o) = γ
 
     if i == 0 && j == 0
-        return (0.0, nothing)
+        return (0, nothing)
+
     elseif i == 0
         return (j * e, (0, j-1))
+
     elseif j == 0
         return (i * e, (i-1, 0))
+
     else
-        (sub, _) = s(i-1, j-1, Σ, Σ_idx, γ, x, y)
-        (ins, _) = s(i-1, j, Σ, Σ_idx, γ, x, y)
-        (del, _) = s(i, j-1, Σ, Σ_idx, γ, x, y)
+        (sub, _) = Needleman_Wunsch(i-1, j-1, Σ, Σ_idx, γ, x, y)
+        (ins, _) = Needleman_Wunsch(i-1, j, Σ, Σ_idx, γ, x, y)
+        (del, _) = Needleman_Wunsch(i, j-1, Σ, Σ_idx, γ, x, y)
 
-        xi = Σ_idx[x[i]]
-        yj = Σ_idx[y[j]]
+        xᵢ = Σ_idx[x[i]]
+        yⱼ = Σ_idx[y[j]]
 
-        return max((Σ[xi, yj] + sub, (i-1, j-1)),
+        return max((Σ[xᵢ, yⱼ] + sub, (i-1, j-1)),
                    (e + ins, (i-1, j)),
                    (e + del, (i, j-1)))
     end
@@ -37,23 +40,20 @@ function backtrack(S, x, y)
     if kl == nothing
         return ("", "")
 
+    elseif kl == (i-1, j-1)
+        (x′, y′) = backtrack(S[1:end-1, 1:end-1], x[1:end-1], y[1:end-1])
+        return (x′ * x[end], y′ * y[end])
+
+    elseif kl == (i-1, j)
+        (x′, y′) = backtrack(S[1:end-1, :], x[1:end-1], y[:])
+        return (x′ * x[end], y′ * '-')
+
+    elseif kl == (i, j-1)
+        (x′, y′) = backtrack(S[:, 1:end-1], x[:], y[1:end-1])
+        return (x′ * '-', y′ * y[end])
+
     else
-        if kl == (i-1, j-1)
-            (x′, y′) = backtrack(S[1:end-1, 1:end-1], x[1:end-1], y[1:end-1])
-            return (x′ * x[end], y′ * y[end])
-
-        elseif kl == (i-1, j)
-            (x′, y′) = backtrack(S[1:end-1, :], x[1:end-1], y[:])
-            return (x′ * x[end], y′ * '-')
-
-        elseif kl == (i, j-1)
-            (x′, y′) = backtrack(S[:, 1:end-1], x[:], y[1:end-1])
-            return (x′ * '-', y′ * y[end])
-
-        else
-            println("(k,l) = ", kl, " (i,j) = ", (i, j))
-            throw(error("Wrong backtrack matrix"))
-        end
+        throw(error("Wrong backtrack matrix"))
     end
 end
 
@@ -94,7 +94,7 @@ function main()
     N = length(y)
 
     # get S
-    S = [ s(i, j, Σ, Σ_idx, γ, x, y) for i=0:M, j=0:N ]
+    S = [ Needleman_Wunsch(i, j, Σ, Σ_idx, γ, x, y) for i=0:M, j=0:N ]
 
     # result
     if cmd == CmdLine.score
