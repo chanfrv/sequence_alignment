@@ -33,7 +33,6 @@ function get_σ(xtype, x, ytype, y)
         end
 
     return (i,j) -> Σ[ (x[i], y[j]) ]
-
 end
 
 # Fill a cell of S and B according to the Needleman-Wunsch formula
@@ -55,11 +54,13 @@ function Needleman_Wunsch_rec(zi, zj, S, B, σ, γ, M, N)
         return
     end
 
+    # for each row including (zi,zy)
     for i = zi:M
         Needleman_Wunsch_cell(i, zj, S, B, σ, γ, M, N)
     end
 
-    for j = zj:N
+    # for each col excluding (zi,zy) to avoid useless call
+    for j = zj+1:N
         Needleman_Wunsch_cell(zi, j, S, B, σ, γ, M, N)
     end
 
@@ -91,7 +92,6 @@ function Needleman_Wunsch(σ, γ, M, N)
 
     return (S, B)
 end
-
 
 function backtrack(B, x, y)
     (u, v) = size(B)
@@ -137,15 +137,20 @@ function main()
 
     (M, N) = (length(x), length(y))
 
-    # get S
-    (S, B) = Needleman_Wunsch(σ, γ, M, N)
-
     # result
     if cmd == CmdLine.score
+        # get S
+        (S, _) = Needleman_Wunsch(σ, γ, M, N)
+        # print score
         score = S[end, end]
         println(score)
+
     elseif cmd == CmdLine.align
+        # get S
+        (_, B) = Needleman_Wunsch(σ, γ, M, N)
+        # backtrack
         (x′, y′) = backtrack(B, x, y)
+        # print alignment
         println(x′)
         println(y′)
     end

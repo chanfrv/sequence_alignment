@@ -1,3 +1,79 @@
-# Projet mineure santé
+# Projet mineure Santé --- BIOINFO --- Alignement de séquence
 
-## Alignement de séquence
+## Language
+
+J'ai implémenté le projet en Julia, c'est un language que je voulais découvrir et qui me semblait adapté au type de projet.
+
+## Dépendances
+
+### `CmdLine`
+
+J'ai utilisé un paquet pour parser les arguments, CmdLine est officiellement supporté et facilite grandement le parsing des arguments et leur conversion directe dans mes types internes.
+
+Pour installer un paquet en Julia il faut entrer une fois dans l'interpréteur :
+```
+julia> import Pkg
+julia> Pkg.add("CmdLine")
+```
+
+## Usage
+
+J'ai mis un shebang dans le fichier nwalign.jl, il suffit donc de le lancer avec :
+```
+$ ./nwalign.jl [--gamma GAMMA] cmd x y
+```
+
+## Output
+
+### `score`
+
+La sortie de score est un entier :
+```
+$ ./nwalign.jl score AAAA AAA
+2
+```
+
+### `align`
+La sortie de align est l'alignement de x et y, l'un après l'autre à la ligne :
+```
+$ ./nwalign.jl align AAAA AAA
+AAAA
+AAA-
+```
+
+### Erreurs
+Une erreur affiche un message d'erreur de la fonction `throw()`, qui sors et retourne 1 :
+```
+$ ./nwalign.jl foobar AAAA AAA
+invalid argument: foobar (conversion to type Main.CmdLine.CommandEnum failed; you may need to overload
+                  ArgParse.parse_item; the error was: ErrorException("Not a valid command!"))
+usage: nwalign.jl [--gamma GAMMA] cmd x y
+$ echo $?
+1
+```
+
+## Résultats
+
+J'ai implémenté les 3 paliers, avec des temps d'execution raisonnables :
+```
+$ time ./src/nwalign.jl --gamma=0,-1 align TAT ATGAC
+TAT---
+-ATGAC
+./src/nwalign.jl --gamma=0,-1 align TAT ATGAC  5.01s user 0.12s system 99% cpu 5.154 total
+$ time ./nwalign.jl --gamma=-1,-1 align SBZSKDAMKLHLILEGSVNGHCFEIHGEGEG SLSKDAMKLHLVNGHCFNIHGRGEG
+SBZ-SKDAMKLHLILEGSVNGHCFEIHGEGEG
+S--LSKDAMKLHL-----VNGHCFNIHGRGEG
+./nwalign.jl --gamma=-1,-1 align SBZSKDAMKLHLILEGSVNGHCFEIHGEGEG   4.99s user 0.10s system 99% cpu 5.103 total
+```
+
+Je n'ai par contre pas le même résultat pour le dernier exemple du sujet, j'obtiens :
+```
+SBZ-SKDAMKLHLILEGSVNGHCFEIHGEGEG
+S--LSKDAMKLHL-----VNGHCFNIHGRGEG
+```
+
+alors que d'après le sujet je suis censé avoir une substitution entre Z et L (x[3] et y[2]):
+```
+SBZSKDAMKLHLILEGSVNGHCFEIHGEGEG
+S-LSKDAMKLHL-----VNGHCFNIHGRGEG
+```
