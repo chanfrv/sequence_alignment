@@ -4,75 +4,15 @@ include("cmdline.jl")
 include("sigma.jl")
 
 
-# Returns Sij
-function Needleman_Wunsch(i, j, Σ, Σ_idx, γ, x, y)
-    (e, o) = γ
-
-    if i == 0 && j == 0
-        return (0, nothing)
-
-    elseif i == 0
-        return (j * e, (0, j-1))
-
-    elseif j == 0
-        return (i * e, (i-1, 0))
-
-    else
-        (sub, _) = Needleman_Wunsch(i-1, j-1, Σ, Σ_idx, γ, x, y)
-        (ins, _) = Needleman_Wunsch(i-1, j, Σ, Σ_idx, γ, x, y)
-        (del, _) = Needleman_Wunsch(i, j-1, Σ, Σ_idx, γ, x, y)
-
-        xᵢ = Σ_idx[x[i]]
-        yⱼ = Σ_idx[y[j]]
-
-        return max((Σ[xᵢ, yⱼ] + sub, (i-1, j-1)),
-                   (e + ins, (i-1, j)),
-                   (e + del, (i, j-1)))
-    end
-end
-
-function backtrack(S, x, y)
-    (i, j) = size(S)
-    (i, j) = (i-1, j-1) # we go from 0 to size-1
-
-    (_, kl) = S[end, end]
-
-    if kl == nothing
-        return ("", "")
-
-    elseif kl == (i-1, j-1)
-        (x′, y′) = backtrack(S[1:end-1, 1:end-1], x[1:end-1], y[1:end-1])
-        return (x′ * x[end], y′ * y[end])
-
-    elseif kl == (i-1, j)
-        (x′, y′) = backtrack(S[1:end-1, :], x[1:end-1], y[:])
-        return (x′ * x[end], y′ * '-')
-
-    elseif kl == (i, j-1)
-        (x′, y′) = backtrack(S[:, 1:end-1], x[:], y[1:end-1])
-        return (x′ * '-', y′ * y[end])
-
-    else
-        throw(error("Wrong backtrack matrix"))
-    end
-end
-
- 
-function main()
-    # parse args
-    parsed_args = CmdLine.parse_commandline()
-
-    γ = parsed_args[:gamma]
-    cmd = parsed_args[:cmd]
-    (xtype, x) = parsed_args[:x]
-    (ytype, y) = parsed_args[:y]
-
+function get_σ(xtype, x, ytype, y)
     # deal with ambiguities
     if xtype == CmdLine.Any && ytype == CmdLine.Any
         (xtype, ytype) = (CmdLine.ADN, CmdLine.ADN)
-    elseif xtype == CmdLine.Any
+
+    elseif xtype == CmdLine.Any || (xtype == CmdLine.ADN && ytype == CmdLine.PROT)
         xtype = ytype
-    elseif ytype == CmdLine.Any
+
+    elseif ytype == CmdLine.Any || (xtype == CmdLine.PROT && ytype == CmdLine.ADN)
         ytype = xtype
     end
 
@@ -82,26 +22,119 @@ function main()
     end
 
     # get Σ
-    (Σ, Σ_idx) = if xtype == CmdLine.ADN
-        (Σ_nuc, Σ_adn_idx)
-    elseif xtype == CmdLine.ARN
-        (Σ_nuc, Σ_arn_idx)
+    Σ = if xtype == CmdLine.ADN
+            Σ_adn_dict
+        elseif xtype == CmdLine.ARN
+            Σ_arn_dict
+        elseif xtype == CmdLine.PROT
+            Σ_prot_dict
+        else
+            throw(error("Wrong sequence type"))
+        end
+
+    return (i,j) -> Σ[ (x[i], y[j]) ]
+
+end
+
+
+function Needleman_Wunsch_rec(i, j, S, B, σ, γ, M, N)
+
+    if i > M || j > N
+        return
+
+    elseif i == 0 && j == 0
+        S[i+1,j+1] = γ(0)
+        B[i+1,j+1] = nothing
+
+    elseif i == 0
+        S[i+1,j+1] = γ(j)
+        B[i+1,j+1] = (1,j)
+
+    elseif j == 0
+        S[i+1,j+1] = γ(i)
+        B[i+1,j+1] = (i,1)
+
     else
-        (Σ_prot, Σ_prot_idx)
+        sub = (σ(i,j) + S[i-1+1,j-1+1], (i-1+1,j-1+1))
+        ins = [ (γ(k) + S[i-k+1,j+1  ], (i-k+1,j+1  )) for k=1:i ]
+        del = [ (γ(k) + S[i+1  ,j-k+1], (i+1  ,j-k+1)) for k=1:j ]
+
+        (score, back) = max(sub, maximum(ins), maximum(del))
+
+        S[i+1,j+1] = score
+        B[i+1,j+1] = back
     end
 
-    M = length(x)
-    N = length(y)
+    Needleman_Wunsch_rec(i  , j+1, S, B, σ, γ, M, N)
+    Needleman_Wunsch_rec(i+1, j  , S, B, σ, γ, M, N)
+    Needleman_Wunsch_rec(i+1, j+1, S, B, σ, γ, M, N)
+end
+
+
+# Returns Sij
+function Needleman_Wunsch(σ, γ, M, N)
+    S = Int[ 0 for i=0:M, j=0:N ]
+    B = Union{Nothing, Tuple{Int,Int}}[ nothing for i=0:M, j=0:N ]
+
+    Needleman_Wunsch_rec(0, 0, S, B, σ, γ, M, N)
+
+    return (S, B)
+end
+
+
+function backtrack(B, x, y)
+    (u, v) = size(B)
+    back = B[end, end]
+
+    if back == nothing
+        return ("", "")
+    end
+
+    (bk, bl) = back
+
+    if back == (u-1, v-1)
+        (x′, y′) = backtrack(B[1:end-1, 1:end-1], x, y)
+        return (x′ * x[u-1], y′ * y[v-1])
+
+    elseif bl == v
+        k = u - bk
+        (x′, y′) = backtrack(B[1:u-k, :], x, y)
+        return (x′ * x[u-k:u-1], y′ * ('-'^k))
+
+    elseif bk == u
+        k = v - bl
+        (x′, y′) = backtrack(B[:, 1:v-k], x, y)
+        return (x′ * ('-'^k), y′ * y[v-k:v-1])
+
+    else
+        throw(error("Wrong backtrack matrix"))
+    end
+end
+
+
+function main()
+    # parse args
+    parsed_args = CmdLine.parse_commandline()
+
+    (e, o) = parsed_args[:gamma]
+    cmd = parsed_args[:cmd]
+    (xtype, x) = parsed_args[:x]
+    (ytype, y) = parsed_args[:y]
+
+    γ = x -> e*x + o
+    σ = get_σ(xtype, x, ytype, y)
+
+    (M, N) = (length(x), length(y))
 
     # get S
-    S = [ Needleman_Wunsch(i, j, Σ, Σ_idx, γ, x, y) for i=0:M, j=0:N ]
+    (S, B) = Needleman_Wunsch(σ, γ, M, N)
 
     # result
     if cmd == CmdLine.score
-        (score, _) = S[end, end]
+        score = S[end, end]
         println(score)
     elseif cmd == CmdLine.align
-        (x′, y′) = backtrack(S, x, y)
+        (x′, y′) = backtrack(B, x, y)
         println(x′)
         println(y′)
     end
