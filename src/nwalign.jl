@@ -36,38 +36,34 @@ function get_σ(xtype, x, ytype, y)
 
 end
 
+# Fill a cell of S and B according to the Needleman-Wunsch formula
+function Needleman_Wunsch_cell(i, j, S, B, σ, γ, M, N)
+    sub = (σ(i,j) + S[i-1+1,j-1+1], (i-1+1,j-1+1))
+    ins = [ (γ(k) + S[i-k+1,j+1  ], (i-k+1,j+1  )) for k=1:i ]
+    del = [ (γ(k) + S[i+1  ,j-k+1], (i+1  ,j-k+1)) for k=1:j ]
 
-function Needleman_Wunsch_rec(i, j, S, B, σ, γ, M, N)
+    (score, back) = max(sub, maximum(ins), maximum(del))
 
-    if i > M || j > N
+    S[i+1,j+1] = score
+    B[i+1,j+1] = back
+end
+
+# Start from a cell Sᵢⱼ and fill both rows i and cols j
+function Needleman_Wunsch_rec(zi, zj, S, B, σ, γ, M, N)
+
+    if zi > M || zj > N
         return
-
-    elseif i == 0 && j == 0
-        S[i+1,j+1] = γ(0)
-        B[i+1,j+1] = nothing
-
-    elseif i == 0
-        S[i+1,j+1] = γ(j)
-        B[i+1,j+1] = (1,j)
-
-    elseif j == 0
-        S[i+1,j+1] = γ(i)
-        B[i+1,j+1] = (i,1)
-
-    else
-        sub = (σ(i,j) + S[i-1+1,j-1+1], (i-1+1,j-1+1))
-        ins = [ (γ(k) + S[i-k+1,j+1  ], (i-k+1,j+1  )) for k=1:i ]
-        del = [ (γ(k) + S[i+1  ,j-k+1], (i+1  ,j-k+1)) for k=1:j ]
-
-        (score, back) = max(sub, maximum(ins), maximum(del))
-
-        S[i+1,j+1] = score
-        B[i+1,j+1] = back
     end
 
-    Needleman_Wunsch_rec(i  , j+1, S, B, σ, γ, M, N)
-    Needleman_Wunsch_rec(i+1, j  , S, B, σ, γ, M, N)
-    Needleman_Wunsch_rec(i+1, j+1, S, B, σ, γ, M, N)
+    for i = zi:M
+        Needleman_Wunsch_cell(i, zj, S, B, σ, γ, M, N)
+    end
+
+    for j = zj:N
+        Needleman_Wunsch_cell(zi, j, S, B, σ, γ, M, N)
+    end
+
+    Needleman_Wunsch_rec(zi+1, zj+1, S, B, σ, γ, M, N)
 end
 
 
@@ -76,7 +72,22 @@ function Needleman_Wunsch(σ, γ, M, N)
     S = Int[ 0 for i=0:M, j=0:N ]
     B = Union{Nothing, Tuple{Int,Int}}[ nothing for i=0:M, j=0:N ]
 
-    Needleman_Wunsch_rec(0, 0, S, B, σ, γ, M, N)
+    # Fill the borders
+    S[1,1] = γ(0)
+    B[1,1] = nothing
+
+    for i = 1:M
+        S[i+1,1] = γ(i)
+        B[i+1,1] = (i,1)
+    end
+
+    for j = 1:N
+        S[1,j+1] = γ(j)
+        B[1,j+1] = (1,j)
+    end
+
+    # Start the recursive algorithm
+    Needleman_Wunsch_rec(1, 1, S, B, σ, γ, M, N)
 
     return (S, B)
 end
