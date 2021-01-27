@@ -35,38 +35,6 @@ function get_σ(xtype, x, ytype, y)
     return (i,j) -> Σ[ (x[i], y[j]) ]
 end
 
-# Fill a cell of S and B according to the Needleman-Wunsch formula
-function Needleman_Wunsch_cell(i, j, S, B, σ, γ, M, N)
-    sub = (σ(i,j) + S[i-1+1,j-1+1], (i-1+1,j-1+1))
-    ins = [ (γ(k) + S[i-k+1,j+1  ], (i-k+1,j+1  )) for k=1:i ]
-    del = [ (γ(k) + S[i+1  ,j-k+1], (i+1  ,j-k+1)) for k=1:j ]
-
-    (score, back) = max(sub, maximum(ins), maximum(del))
-
-    S[i+1,j+1] = score
-    B[i+1,j+1] = back
-end
-
-# Start from a cell Sᵢⱼ and fill both rows i and cols j
-function Needleman_Wunsch_rec(zi, zj, S, B, σ, γ, M, N)
-
-    if zi > M || zj > N
-        return
-    end
-
-    # for each row including (zi,zj)
-    for i = zi:M
-        Needleman_Wunsch_cell(i, zj, S, B, σ, γ, M, N)
-    end
-
-    # for each col excluding (zi,zj) to avoid useless call
-    for j = zj+1:N
-        Needleman_Wunsch_cell(zi, j, S, B, σ, γ, M, N)
-    end
-
-    Needleman_Wunsch_rec(zi+1, zj+1, S, B, σ, γ, M, N)
-end
-
 
 # Returns Sij
 function Needleman_Wunsch(σ, γ, M, N)
@@ -87,8 +55,16 @@ function Needleman_Wunsch(σ, γ, M, N)
         B[1,j+1] = (1,j)
     end
 
-    # Start the recursive algorithm
-    Needleman_Wunsch_rec(1, 1, S, B, σ, γ, M, N)
+    for i = 1:M, j = 1:N
+        sub = (σ(i,j) + S[i-1+1,j-1+1], (i-1+1,j-1+1))
+        ins = [ (γ(k) + S[i-k+1,j+1  ], (i-k+1,j+1  )) for k=1:i ]
+        del = [ (γ(k) + S[i+1  ,j-k+1], (i+1  ,j-k+1)) for k=1:j ]
+
+        (score, back) = max(sub, maximum(ins), maximum(del))
+
+        S[i+1,j+1] = score
+        B[i+1,j+1] = back
+    end
 
     return (S, B)
 end
