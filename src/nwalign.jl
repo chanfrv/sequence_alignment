@@ -41,30 +41,41 @@ function Needleman_Wunsch(σ, γ, M, N)
     S = Int[ 0 for i=0:M, j=0:N ]
     B = Union{Nothing, Tuple{Int,Int}}[ nothing for i=0:M, j=0:N ]
 
+    s₀ = 1
+
     # Fill the borders
-    S[1,1] = γ(0)
-    B[1,1] = nothing
+    S[s₀,s₀] = γ(0)
+    B[s₀,s₀] = nothing
 
     for i = 1:M
-        S[i+1,1] = γ(i)
-        B[i+1,1] = (i,1)
+        sᵢ = i+1
+
+        S[sᵢ,s₀] = γ(i)
+        B[sᵢ,s₀] = (sᵢ-1,s₀)
     end
 
     for j = 1:N
-        S[1,j+1] = γ(j)
-        B[1,j+1] = (1,j)
+        sⱼ = j+1
+
+        S[s₀,sⱼ] = γ(j)
+        B[s₀,sⱼ] = (s₀,sⱼ-1)
     end
 
     for i = 1:M, j = 1:N
-        sub = (σ(i,j) + S[i-1+1,j-1+1], (i-1+1,j-1+1))
-        ins = [ (γ(k) + S[i-k+1,j+1  ], (i-k+1,j+1  )) for k=1:i ]
-        del = [ (γ(k) + S[i+1  ,j-k+1], (i+1  ,j-k+1)) for k=1:j ]
+        (sᵢ,sⱼ) = (i+1,j+1)
+ 
+        sub = (σ(i,j) + S[sᵢ-1,sⱼ-1], (sᵢ-1,sⱼ-1))
+        ins = [ (γ(k) + S[sᵢ-k,sⱼ  ], (sᵢ-k,sⱼ  )) for k=1:i ]
+        del = [ (γ(k) + S[sᵢ  ,sⱼ-k], (sᵢ  ,sⱼ-k)) for k=1:j ]
 
         (score, back) = max(sub, maximum(ins), maximum(del))
 
-        S[i+1,j+1] = score
-        B[i+1,j+1] = back
+        S[sᵢ,sⱼ] = score
+        B[sᵢ,sⱼ] = back
     end
+
+    display(S)
+    println()
 
     return (S, B)
 end
@@ -103,8 +114,8 @@ function main()
     # parse args
     parsed_args = CmdLine.parse_commandline()
 
-    (e, o) = parsed_args[:gamma]
-    cmd = parsed_args[:cmd]
+    (e, o)     = parsed_args[:gamma]
+    cmd        = parsed_args[:cmd]
     (xtype, x) = parsed_args[:x]
     (ytype, y) = parsed_args[:y]
 
